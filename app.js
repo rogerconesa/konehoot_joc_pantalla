@@ -72,7 +72,7 @@ function iniciarJoc() {
   if (connEl) connEl.textContent = 'Connexio: connectant a jugadors…';
 
   if (jugadorsSnap) jugadorsSnap();
-  jugadorsSnap = onSnapshot(collection(db, 'partida', 'jugadors'), snap => {
+  jugadorsSnap = onSnapshot(collection(db, 'partida', 'estat', 'jugadors'), snap => {
     const jugadorsConnectats = snap.size;
     const el = document.getElementById('espera-jugadors');
     if (el) el.textContent = jugadorsConnectats;
@@ -219,7 +219,7 @@ async function mostrarResultats() {
 
   // Puntuació acumulada de Firestore
   const rankSnap = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js")
-    .then(m => m.getDocs(collection(db, 'partida', 'jugadors')));
+    .then(m => m.getDocs(collection(db, 'partida', 'estat', 'jugadors')));
 
   const rank = [];
   rankSnap.forEach(d => rank.push({ nom: d.id, ...d.data() }));
@@ -240,7 +240,7 @@ async function mostrarFinal() {
   document.getElementById('screen-final').style.display = 'flex';
 
   const rankSnap = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js")
-    .then(m => m.getDocs(collection(db, 'partida', 'jugadors')));
+    .then(m => m.getDocs(collection(db, 'partida', 'estat', 'jugadors')));
 
   const rank = [];
   rankSnap.forEach(d => rank.push({ nom: d.id, ...d.data() }));
@@ -294,7 +294,7 @@ window.resetJoc = async function() {
   const batch = writeBatch(db);
   const rSnap = await getDocs(collection(db, 'partida', 'estat', 'respostes'));
   rSnap.forEach(d => batch.delete(d.ref));
-  const jSnap = await getDocs(collection(db, 'partida', 'jugadors'));
+  const jSnap = await getDocs(collection(db, 'partida', 'estat', 'jugadors'));
   jSnap.forEach(d => batch.delete(d.ref));
   batch.set(doc(db, 'partida', 'estat'), { fase: 'espera' });
   await batch.commit();
