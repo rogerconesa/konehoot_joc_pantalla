@@ -153,6 +153,25 @@ body {
 }
 .espera-stats strong { color: var(--text); }
 
+#conn-status { font-size: 12px; }
+
+.espera-players {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 700px;
+}
+
+.player-chip {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text);
+}
+
 .espera-start-btn {
   background: var(--c1);
   color: #0a0a0a;

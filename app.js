@@ -14,7 +14,8 @@ const firebaseConfig = {
   appId: "1:357275257330:web:a45bd66abb86a0747e836b"
 };
 const ADMIN_PASSWORD = "konehoot2025";
-const MOBILE_JOIN_URL = "konehoot.pages.dev";
+const MOBILE_JOIN_URL = "https://konehootjocmobil.rogerconesa.workers.dev/";
+const BUILD_VERSION = "2026-05-15";
 // ─────────────────────────────────────────────────────────────────────
 
 const app = initializeApp(firebaseConfig);
@@ -44,6 +45,8 @@ window.login = login;
 document.addEventListener('DOMContentLoaded', () => {
   const joinUrlEl = document.getElementById('join-url');
   if (joinUrlEl) joinUrlEl.textContent = MOBILE_JOIN_URL;
+  const buildEl = document.getElementById('build-version');
+  if (buildEl) buildEl.textContent = `build ${BUILD_VERSION}`;
   document.getElementById('pw').focus();
   document.getElementById('pw').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
 });
@@ -65,6 +68,9 @@ function iniciarJoc() {
     renderEstat();
   });
 
+  const connEl = document.getElementById('conn-status');
+  if (connEl) connEl.textContent = 'Connexio: connectant a jugadors…';
+
   if (jugadorsSnap) jugadorsSnap();
   jugadorsSnap = onSnapshot(collection(db, 'partida', 'jugadors'), snap => {
     const jugadorsConnectats = snap.size;
@@ -72,10 +78,19 @@ function iniciarJoc() {
     if (el) el.textContent = jugadorsConnectats;
     const startBtn = document.getElementById('espera-start-btn');
     if (startBtn) startBtn.disabled = jugadorsConnectats < 1;
+    const playersEl = document.getElementById('espera-players');
+    if (playersEl) {
+      const noms = snap.docs.map(d => (d.data().nom || d.id)).filter(Boolean).sort((a, b) => String(a).localeCompare(String(b), 'ca'));
+      playersEl.innerHTML = noms.map(n => `<span class="player-chip">${esc(n)}</span>`).join('');
+    }
+    if (connEl) connEl.textContent = 'Connexio: en linia';
   }, err => {
     console.error('Error llegint jugadors connectats:', err);
     const el = document.getElementById('espera-jugadors');
     if (el) el.textContent = '0';
+    const playersEl = document.getElementById('espera-players');
+    if (playersEl) playersEl.innerHTML = '';
+    if (connEl) connEl.textContent = 'Connexio: error llegint jugadors';
   });
 }
 
