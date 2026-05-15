@@ -30,6 +30,10 @@
     <div class="konehoot-logo espera-logo">Kone<span>hoot</span></div>
     <div class="espera-sub">El joc està a punt</div>
     <div class="espera-url">Entra a: <strong id="join-url">konehoot.pages.dev</strong></div>
+    <div class="espera-stats" style="display:flex;align-items:center;gap:8px">
+      <span>Joc:</span>
+      <select id="pantalla-joc-select"></select>
+    </div>
     <div class="espera-stats">
       <strong id="espera-total">0</strong> preguntes preparades
     </div>
@@ -37,7 +41,6 @@
       <strong id="espera-jugadors">0</strong> jugadors connectats
     </div>
     <div class="espera-stats" id="conn-status">Connexio: iniciant…</div>
-    <div class="espera-stats" id="build-version">build</div>
     <div class="espera-players" id="espera-players"></div>
     <button class="espera-start-btn" id="espera-start-btn" onclick="iniciarPartida()" disabled>▶ Iniciar joc</button>
     <div class="dots">
@@ -105,7 +108,6 @@
   <div class="admin-controls">
     <button class="ctrl-btn danger" onclick="resetJoc()">↺ Reset</button>
     <button class="ctrl-btn" onclick="mostrarResultatsAdmin()" id="btn-resultats">Mostrar resultats</button>
-    <button class="ctrl-btn primary" onclick="iniciarPartida()" id="btn-iniciar">▶ Iniciar joc</button>
     <button class="ctrl-btn primary" onclick="seguentPregunta()" id="btn-seguent" style="display:none">Següent →</button>
   </div>
 

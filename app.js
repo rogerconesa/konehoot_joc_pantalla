@@ -15,7 +15,6 @@ const firebaseConfig = {
 };
 const ADMIN_PASSWORD = "konehoot2025";
 const MOBILE_JOIN_URL = "https://konehootjocmobil.rogerconesa.workers.dev/";
-const BUILD_VERSION = "2026-05-15";
 // ─────────────────────────────────────────────────────────────────────
 
 const app = initializeApp(firebaseConfig);
@@ -28,6 +27,9 @@ let timerInterval = null;
 let tempsRestant  = 0;
 let respostesSnap = null;
 let jugadorsSnap = null;
+let jocs = [];
+let configJoc = { tempsPregunta: 20, puntsBase: 1000, puntsRapidesa: 500 };
+let jocSeleccionat = '';
 
 // ── Login ─────────────────────────────────────────────────────────────
 function login() {
@@ -45,8 +47,11 @@ window.login = login;
 document.addEventListener('DOMContentLoaded', () => {
   const joinUrlEl = document.getElementById('join-url');
   if (joinUrlEl) joinUrlEl.textContent = MOBILE_JOIN_URL;
-  const buildEl = document.getElementById('build-version');
-  if (buildEl) buildEl.textContent = `build ${BUILD_VERSION}`;
+  const jocSelect = document.getElementById('pantalla-joc-select');
+  if (jocSelect) jocSelect.addEventListener('change', () => {
+    jocSeleccionat = jocSelect.value;
+    mostrarEspera();
+  });
   document.getElementById('pw').focus();
   document.getElementById('pw').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
 });
@@ -56,6 +61,19 @@ function iniciarJoc() {
   // Preguntes del joc
   onSnapshot(query(collection(db, 'preguntes'), orderBy('ordre', 'asc')), snap => {
     preguntes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    mostrarEspera();
+  });
+
+  onSnapshot(query(collection(db, 'jocs'), orderBy('createdAt', 'asc')), snap => {
+    jocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const select = document.getElementById('pantalla-joc-select');
+    if (select) {
+      const actius = jocs.filter(j => j.actiu !== false);
+      select.innerHTML = actius.map(j => `<option value="${j.id}">${esc(j.nom || j.id)}</option>`).join('');
+      if (!jocSeleccionat && actius.length) jocSeleccionat = actius[0].id;
+      if (jocSeleccionat) select.value = jocSeleccionat;
+    }
+    mostrarEspera();
   });
 
   // Estat partida
@@ -65,8 +83,17 @@ function iniciarJoc() {
       return;
     }
     partida = snap.data();
+    if (partida.jocId) {
+      jocSeleccionat = partida.jocId;
+      const select = document.getElementById('pantalla-joc-select');
+      if (select) select.value = jocSeleccionat;
+    }
     renderEstat();
   });
+
+  getDoc(doc(db, 'partida', 'config')).then(cfg => {
+    if (cfg.exists()) configJoc = { ...configJoc, ...cfg.data() };
+  }).catch(() => {});
 
   const connEl = document.getElementById('conn-status');
   if (connEl) connEl.textContent = 'Connexio: connectant a jugadors…';
@@ -115,7 +142,14 @@ function ocultarTot() {
 // ── PANTALLA ESPERA ───────────────────────────────────────────────────
 function mostrarEspera() {
   document.getElementById('screen-espera').style.display = 'flex';
-  document.getElementById('espera-total').textContent = preguntes.length;
+  const jocActiu = partida.jocId || jocSeleccionat;
+  const total = preguntes.filter(p => (p.jocId || '') === jocActiu).length;
+  document.getElementById('espera-total').textContent = total;
+}
+
+function preguntesActives() {
+  const jocActiu = partida.jocId || jocSeleccionat;
+  return preguntes.filter(p => (p.jocId || '') === jocActiu);
 }
 
 // ── PANTALLA PREGUNTA ─────────────────────────────────────────────────
@@ -124,10 +158,11 @@ function mostrarPregunta() {
   screen.style.display = 'flex';
 
   const idx = partida.preguntaIndex ?? 0;
-  const p   = preguntes[idx];
+  const p   = preguntesActives()[idx];
   if (!p) return;
 
-  document.getElementById('pq-numero').textContent = `${idx + 1} / ${preguntes.length}`;
+  const bloc = preguntesActives();
+  document.getElementById('pq-numero').textContent = `${idx + 1} / ${bloc.length}`;
   document.getElementById('pq-autor').textContent  = p.autor;
   document.getElementById('pq-text').textContent   = p.pregunta;
 
@@ -178,10 +213,10 @@ async function mostrarResultats() {
   if (respostesSnap) { respostesSnap(); respostesSnap = null; }
 
   const idx = partida.preguntaIndex ?? 0;
-  const p   = preguntes[idx];
+  const p   = preguntesActives()[idx];
   if (!p) return;
 
-  document.getElementById('res-numero').textContent = `Pregunta ${idx + 1} de ${preguntes.length}`;
+  document.getElementById('res-numero').textContent = `Pregunta ${idx + 1} de ${preguntesActives().length}`;
   document.getElementById('res-text').textContent   = p.pregunta;
   document.getElementById('res-autor').textContent  = p.autor;
 
@@ -258,20 +293,28 @@ async function mostrarFinal() {
 
 // ── CONTROLS ADMIN (botons de la pantalla) ────────────────────────────
 window.iniciarPartida = async function() {
-  if (!preguntes.length) { alert('No hi ha preguntes al joc!'); return; }
+  const bloc = preguntes.filter(p => (p.jocId || '') === jocSeleccionat);
+  if (!jocSeleccionat) { alert('Selecciona un joc.'); return; }
+  if (!bloc.length) { alert('No hi ha preguntes al joc seleccionat!'); return; }
+  const joc = jocs.find(j => j.id === jocSeleccionat);
   // Esborra jugadors i respostes anteriors
   const batch = (await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js")).writeBatch(db);
   await setDoc(doc(db, 'partida', 'estat'), {
     fase: 'pregunta',
+    jocId: jocSeleccionat,
+    jocNom: joc?.nom || jocSeleccionat,
     preguntaIndex: 0,
-    tempsPregunta: 20,
+    tempsPregunta: configJoc.tempsPregunta || 20,
+    puntsBase: configJoc.puntsBase || 1000,
+    puntsRapidesa: configJoc.puntsRapidesa || 500,
     iniciatAt: serverTimestamp()
   });
 };
 
 window.seguentPregunta = async function() {
+  const bloc = preguntesActives();
   const idx = (partida.preguntaIndex ?? 0) + 1;
-  if (idx >= preguntes.length) {
+  if (idx >= bloc.length) {
     await updateDoc(doc(db, 'partida', 'estat'), { fase: 'final' });
   } else {
     // Esborra respostes de la ronda anterior
@@ -310,7 +353,6 @@ const observer = new MutationObserver(() => {
              : document.getElementById('screen-resultats').style.display !== 'none' ? 'resultats'
              : document.getElementById('screen-final').style.display !== 'none' ? 'final'
              : 'espera';
-  document.getElementById('btn-iniciar').style.display  = fase === 'espera'    ? '' : 'none';
   document.getElementById('btn-resultats').style.display = fase === 'pregunta'  ? '' : 'none';
   document.getElementById('btn-seguent').style.display   = fase === 'resultats' ? '' : 'none';
 });
