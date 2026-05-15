@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const jocSelect = document.getElementById('pantalla-joc-select');
   if (jocSelect) jocSelect.addEventListener('change', () => {
     jocSeleccionat = jocSelect.value;
+    actualitzarTemaPerJoc();
     mostrarEspera();
   });
   document.getElementById('pw').focus();
@@ -88,6 +89,7 @@ function iniciarJoc() {
       const select = document.getElementById('pantalla-joc-select');
       if (select) select.value = jocSeleccionat;
     }
+    actualitzarTemaPerJoc();
     renderEstat();
   });
 
@@ -145,6 +147,11 @@ function mostrarEspera() {
   const jocActiu = partida.jocId || jocSeleccionat;
   const total = preguntes.filter(p => (p.jocId || '') === jocActiu).length;
   document.getElementById('espera-total').textContent = total;
+}
+
+function actualitzarTemaPerJoc() {
+  const jocActiu = partida.jocNom || (jocs.find(j => j.id === jocSeleccionat)?.nom || '');
+  document.body.classList.toggle('theme-finde', String(jocActiu).trim().toLowerCase() === 'finde rural 2026');
 }
 
 function preguntesActives() {
