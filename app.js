@@ -14,7 +14,7 @@ const firebaseConfig = {
   appId: "1:357275257330:web:a45bd66abb86a0747e836b"
 };
 const ADMIN_PASSWORD = "konehoot2025";
-const MOBILE_JOIN_URL = "https://konehootjocmobil.rogerconesa.workers.dev/";
+const MOBILE_JOIN_URL = "konehoot.pages.dev";
 // ─────────────────────────────────────────────────────────────────────
 
 const app = initializeApp(firebaseConfig);
@@ -72,6 +72,10 @@ function iniciarJoc() {
     if (el) el.textContent = jugadorsConnectats;
     const startBtn = document.getElementById('espera-start-btn');
     if (startBtn) startBtn.disabled = jugadorsConnectats < 1;
+  }, err => {
+    console.error('Error llegint jugadors connectats:', err);
+    const el = document.getElementById('espera-jugadors');
+    if (el) el.textContent = '0';
   });
 }
 
