@@ -14,7 +14,7 @@ const firebaseConfig = {
   appId: "1:357275257330:web:a45bd66abb86a0747e836b"
 };
 const ADMIN_PASSWORD = "konehoot2025";
-const MOBILE_JOIN_URL = "konehoot.pages.dev";
+const MOBILE_JOIN_URL = "https://konehootjocmobil.rogerconesa.workers.dev/";
 // ─────────────────────────────────────────────────────────────────────
 
 const app = initializeApp(firebaseConfig);
