@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Konehoot · Pantalla</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="style.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="konehoot-logo">Kone<span>hoot</span></div>
+    <p>Pantalla de joc · Accés admin</p>
+    <div id="login-err">Contrasenya incorrecta</div>
+    <input type="password" id="pw" placeholder="Contrasenya admin">
+    <button onclick="login()">Iniciar pantalla →</button>
+  </div>
+</div>
+
+<!-- JOC -->
+<div id="joc">
+
+  <!-- ESPERA -->
+  <div id="screen-espera" style="display:flex">
+    <div class="konehoot-logo espera-logo">Kone<span>hoot</span></div>
+    <div class="espera-sub">El joc està a punt</div>
+    <div class="espera-url">Entra a: <strong>konehoot.pages.dev</strong></div>
+    <div class="espera-stats">
+      <strong id="espera-total">0</strong> preguntes preparades
+    </div>
+    <div class="dots">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+  </div>
+
+  <!-- PREGUNTA -->
+  <div id="screen-pregunta">
+    <div class="pq-topbar">
+      <div class="pq-numero" id="pq-numero">1 / 10</div>
+      <div class="pq-autor-pill">Pregunta de <strong id="pq-autor"></strong></div>
+      <div class="timer-wrap">
+        <svg width="80" height="80" viewBox="0 0 100 100">
+          <circle id="timer-track" cx="50" cy="50" r="44"/>
+          <circle id="timer-arc"   cx="50" cy="50" r="44"/>
+        </svg>
+        <div id="pq-timer">20</div>
+      </div>
+    </div>
+
+    <div class="pq-box">
+      <div class="pq-text" id="pq-text"></div>
+      <div class="pq-respostes-cnt">
+        <strong id="pq-respostes-cnt">0</strong> respostes rebudes
+      </div>
+    </div>
+
+    <div class="pq-grid">
+      <div class="pq-resp" id="pq-resp-0"><span class="resp-lletra">A</span><span class="resp-text"></span></div>
+      <div class="pq-resp" id="pq-resp-1"><span class="resp-lletra">B</span><span class="resp-text"></span></div>
+      <div class="pq-resp" id="pq-resp-2"><span class="resp-lletra">C</span><span class="resp-text"></span></div>
+      <div class="pq-resp" id="pq-resp-3"><span class="resp-lletra">D</span><span class="resp-text"></span></div>
+    </div>
+  </div>
+
+  <!-- RESULTATS -->
+  <div id="screen-resultats">
+    <div class="res-left">
+      <div class="res-label-top" id="res-numero">Pregunta 1 de 10</div>
+      <div class="res-pregunta-text" id="res-text"></div>
+      <div class="res-autor-pill">✎ <span id="res-autor"></span></div>
+      <div class="res-barres">
+        <div class="res-resp-bar" id="res-resp-0"><div class="res-bar-fill"></div><div class="res-label"></div></div>
+        <div class="res-resp-bar" id="res-resp-1"><div class="res-bar-fill"></div><div class="res-label"></div></div>
+        <div class="res-resp-bar" id="res-resp-2"><div class="res-bar-fill"></div><div class="res-label"></div></div>
+        <div class="res-resp-bar" id="res-resp-3"><div class="res-bar-fill"></div><div class="res-label"></div></div>
+      </div>
+    </div>
+    <div class="res-right">
+      <div class="rank-title">Rànquing</div>
+      <div id="res-ranking"></div>
+    </div>
+  </div>
+
+  <!-- FINAL -->
+  <div id="screen-final">
+    <div class="final-title">Fi del<br><span>Konehoot!</span></div>
+    <div id="final-ranking"></div>
+  </div>
+
+  <!-- Controls admin -->
+  <div class="admin-controls">
+    <button class="ctrl-btn danger" onclick="resetJoc()">↺ Reset</button>
+    <button class="ctrl-btn" onclick="mostrarResultatsAdmin()" id="btn-resultats">Mostrar resultats</button>
+    <button class="ctrl-btn primary" onclick="iniciarPartida()" id="btn-iniciar">▶ Iniciar joc</button>
+    <button class="ctrl-btn primary" onclick="seguentPregunta()" id="btn-seguent" style="display:none">Següent →</button>
+  </div>
+
+</div>
+
+</body>
+</html>
