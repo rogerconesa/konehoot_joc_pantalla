@@ -14,7 +14,6 @@ const firebaseConfig = {
   appId: "1:357275257330:web:a45bd66abb86a0747e836b"
 };
 const ADMIN_PASSWORD = "konehoot2025";
-const MOBILE_JOIN_URL = "https://konehootjocmobil.rogerconesa.workers.dev/";
 // ─────────────────────────────────────────────────────────────────────
 
 const app = initializeApp(firebaseConfig);
@@ -31,6 +30,17 @@ let jocs = [];
 let configJoc = { tempsPregunta: 20, puntsBase: 1000, puntsRapidesa: 500 };
 let jocSeleccionat = '';
 
+function getJocActiu() {
+  return jocs.find(j => j.actiu !== false) || null;
+}
+
+function tsMillis(ts) {
+  if (!ts) return 0;
+  if (typeof ts.toMillis === 'function') return ts.toMillis();
+  if (typeof ts.seconds === 'number') return ts.seconds * 1000 + Math.floor((ts.nanoseconds || 0) / 1e6);
+  return 0;
+}
+
 // ── Login ─────────────────────────────────────────────────────────────
 function login() {
   const pw = document.getElementById('pw').value;
@@ -45,14 +55,6 @@ function login() {
 }
 window.login = login;
 document.addEventListener('DOMContentLoaded', () => {
-  const joinUrlEl = document.getElementById('join-url');
-  if (joinUrlEl) joinUrlEl.textContent = MOBILE_JOIN_URL;
-  const jocSelect = document.getElementById('pantalla-joc-select');
-  if (jocSelect) jocSelect.addEventListener('change', () => {
-    jocSeleccionat = jocSelect.value;
-    actualitzarTemaPerJoc();
-    mostrarEspera();
-  });
   document.getElementById('pw').focus();
   document.getElementById('pw').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
 });
@@ -67,13 +69,10 @@ function iniciarJoc() {
 
   onSnapshot(query(collection(db, 'jocs'), orderBy('createdAt', 'asc')), snap => {
     jocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const select = document.getElementById('pantalla-joc-select');
-    if (select) {
-      const actius = jocs.filter(j => j.actiu !== false);
-      select.innerHTML = actius.map(j => `<option value="${j.id}">${esc(j.nom || j.id)}</option>`).join('');
-      if (!jocSeleccionat && actius.length) jocSeleccionat = actius[0].id;
-      if (jocSeleccionat) select.value = jocSeleccionat;
-    }
+    const jocActiu = getJocActiu();
+    jocSeleccionat = jocActiu?.id || '';
+    const jocLabel = document.getElementById('pantalla-joc-actiu');
+    if (jocLabel) jocLabel.textContent = jocActiu ? (jocActiu.nom || jocActiu.id) : 'Cap joc actiu';
     mostrarEspera();
   });
 
@@ -86,8 +85,6 @@ function iniciarJoc() {
     partida = snap.data();
     if (partida.jocId) {
       jocSeleccionat = partida.jocId;
-      const select = document.getElementById('pantalla-joc-select');
-      if (select) select.value = jocSeleccionat;
     }
     actualitzarTemaPerJoc();
     renderEstat();
@@ -102,14 +99,16 @@ function iniciarJoc() {
 
   if (jugadorsSnap) jugadorsSnap();
   jugadorsSnap = onSnapshot(collection(db, 'partida', 'estat', 'jugadors'), snap => {
-    const jugadorsConnectats = snap.size;
+    const resetAtMs = tsMillis(partida.resetAt);
+    const docsActius = snap.docs.filter(d => tsMillis(d.data().connectatAt) >= resetAtMs);
+    const jugadorsConnectats = docsActius.length;
     const el = document.getElementById('espera-jugadors');
     if (el) el.textContent = jugadorsConnectats;
     const startBtn = document.getElementById('espera-start-btn');
     if (startBtn) startBtn.disabled = jugadorsConnectats < 1;
     const playersEl = document.getElementById('espera-players');
     if (playersEl) {
-      const noms = snap.docs.map(d => (d.data().nom || d.id)).filter(Boolean).sort((a, b) => String(a).localeCompare(String(b), 'ca'));
+      const noms = docsActius.map(d => (d.data().nom || d.id)).filter(Boolean).sort((a, b) => String(a).localeCompare(String(b), 'ca'));
       playersEl.innerHTML = noms.map(n => `<span class="player-chip">${esc(n)}</span>`).join('');
     }
     if (connEl) connEl.textContent = 'Connexio: en linia';
@@ -346,7 +345,7 @@ window.resetJoc = async function() {
   rSnap.forEach(d => batch.delete(d.ref));
   const jSnap = await getDocs(collection(db, 'partida', 'estat', 'jugadors'));
   jSnap.forEach(d => batch.delete(d.ref));
-  batch.set(doc(db, 'partida', 'estat'), { fase: 'espera' });
+  batch.set(doc(db, 'partida', 'estat'), { fase: 'espera', resetAt: serverTimestamp() });
   await batch.commit();
 };
 
