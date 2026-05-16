@@ -191,17 +191,6 @@ body.theme-finde .party-balloons { opacity: 0.8; }
   font-weight: 300;
 }
 
-.espera-url {
-  font-family: var(--font-display);
-  font-size: clamp(14px, 2vw, 18px);
-  color: var(--c2);
-  background: rgba(58,255,160,0.08);
-  border: 1px solid rgba(58,255,160,0.2);
-  padding: 12px 28px;
-  border-radius: 100px;
-  letter-spacing: 0.04em;
-}
-
 #pantalla-joc-select {
   background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.2);
@@ -225,7 +214,12 @@ body.theme-finde .party-balloons { opacity: 0.8; }
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
-  max-width: 700px;
+  max-width: 780px;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px dashed rgba(255,255,255,0.16);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
 }
 
 .player-chip {
