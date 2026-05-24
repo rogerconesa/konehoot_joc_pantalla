@@ -31,7 +31,6 @@ let configJoc = { tempsPregunta: 20, puntsBase: 1000, puntsRapidesa: 500 };
 let jocSeleccionat = '';
 let jugadorsActiusCount = 0;
 let respostesActualsCount = 0;
-let canviantAResultats = false;
 
 async function comptarJugadorsActius(jocId) {
   if (!jocId) return 0;
@@ -146,7 +145,6 @@ function iniciarJoc() {
 // ── Render principal ──────────────────────────────────────────────────
 function renderEstat() {
   const fase = partida.fase || 'espera';
-  if (fase !== 'pregunta') canviantAResultats = false;
   ocultarTot();
 
   if (fase === 'espera')       mostrarEspera();
@@ -211,18 +209,6 @@ function mostrarPregunta() {
       respostesActualsCount = snap.size;
       document.getElementById('pq-respostes-cnt').textContent = respostesActualsCount;
       actualitzarBotoResultats();
-      const jugadorsEsperats = Number(partida.jugadorsEsperats || 0);
-      if (
-        (partida.fase || 'espera') === 'pregunta' &&
-        !canviantAResultats &&
-        jugadorsEsperats > 0 &&
-        respostesActualsCount >= jugadorsEsperats
-      ) {
-        canviantAResultats = true;
-        updateDoc(doc(db, 'partida', 'estat'), { fase: 'resultats' }).catch(() => {
-          canviantAResultats = false;
-        });
-      }
     }
   );
 
@@ -386,9 +372,7 @@ function actualitzarBotoResultats() {
   const btn = document.getElementById('btn-resultats');
   if (!btn) return;
   const fasePregunta = (partida.fase || 'espera') === 'pregunta';
-  const jugadorsEsperats = Number(partida.jugadorsEsperats || 0);
-  const tothomHaRespost = jugadorsEsperats > 0 && respostesActualsCount >= jugadorsEsperats;
-  btn.disabled = fasePregunta ? !tothomHaRespost : false;
+  btn.disabled = !fasePregunta;
 }
 
 window.resetJoc = async function() {
