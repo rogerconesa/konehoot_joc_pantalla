@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   getFirestore, collection, query, orderBy, onSnapshot,
-  doc, getDoc, setDoc, updateDoc, serverTimestamp, writeBatch
+  doc, getDoc, getDocs, setDoc, updateDoc, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ── CONFIGURA AQUÍ ────────────────────────────────────────────────────
@@ -32,6 +32,16 @@ let jocSeleccionat = '';
 let jugadorsActiusCount = 0;
 let respostesActualsCount = 0;
 let canviantAResultats = false;
+
+async function comptarJugadorsActius(jocId) {
+  if (!jocId) return 0;
+  const resetAtMs = tsMillis(partida.resetAt);
+  const snap = await getDocs(collection(db, 'partida', 'estat', 'jugadors'));
+  return snap.docs.filter(d => {
+    const dat = d.data() || {};
+    return (dat.jocId || '') === jocId && tsMillis(dat.connectatAt) >= resetAtMs;
+  }).length;
+}
 
 function getJocActiu() {
   return jocs.find(j => j.actiu !== false) || null;
@@ -194,17 +204,19 @@ function mostrarPregunta() {
 
   // Comptador de respostes en temps real
   if (respostesSnap) respostesSnap(); // unsub anterior
+  respostesActualsCount = 0;
   respostesSnap = onSnapshot(
     collection(db, 'partida', 'estat', 'respostes'),
     snap => {
       respostesActualsCount = snap.size;
       document.getElementById('pq-respostes-cnt').textContent = respostesActualsCount;
       actualitzarBotoResultats();
+      const jugadorsEsperats = Number(partida.jugadorsEsperats || 0);
       if (
         (partida.fase || 'espera') === 'pregunta' &&
         !canviantAResultats &&
-        jugadorsActiusCount > 0 &&
-        respostesActualsCount >= jugadorsActiusCount
+        jugadorsEsperats > 0 &&
+        respostesActualsCount >= jugadorsEsperats
       ) {
         canviantAResultats = true;
         updateDoc(doc(db, 'partida', 'estat'), { fase: 'resultats' }).catch(() => {
@@ -329,8 +341,8 @@ window.iniciarPartida = async function() {
   if (!jocSeleccionat) { alert('Selecciona un joc.'); return; }
   if (!bloc.length) { alert('No hi ha preguntes al joc seleccionat!'); return; }
   const joc = jocs.find(j => j.id === jocSeleccionat);
+  const jugadorsEsperats = await comptarJugadorsActius(jocSeleccionat);
   // Esborra respostes anteriors
-  const { getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
   const batch = writeBatch(db);
   const rSnap = await getDocs(collection(db, 'partida', 'estat', 'respostes'));
   rSnap.forEach(d => batch.delete(d.ref));
@@ -341,6 +353,7 @@ window.iniciarPartida = async function() {
     jocId: jocSeleccionat,
     jocNom: joc?.nom || jocSeleccionat,
     preguntaIndex: 0,
+    jugadorsEsperats,
     tempsPregunta: configJoc.tempsPregunta || 20,
     puntsBase: configJoc.puntsBase || 1000,
     puntsRapidesa: configJoc.puntsRapidesa || 500,
@@ -354,12 +367,12 @@ window.seguentPregunta = async function() {
   if (idx >= bloc.length) {
     await updateDoc(doc(db, 'partida', 'estat'), { fase: 'final' });
   } else {
+    const jugadorsEsperats = await comptarJugadorsActius(partida.jocId || jocSeleccionat);
     // Esborra respostes de la ronda anterior
-    const { getDocs, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
     const rSnap = await getDocs(collection(db, 'partida', 'estat', 'respostes'));
     const batch = writeBatch(db);
     rSnap.forEach(d => batch.delete(d.ref));
-    batch.update(doc(db, 'partida', 'estat'), { fase: 'pregunta', preguntaIndex: idx });
+    batch.update(doc(db, 'partida', 'estat'), { fase: 'pregunta', preguntaIndex: idx, jugadorsEsperats });
     await batch.commit();
   }
 };
@@ -373,13 +386,13 @@ function actualitzarBotoResultats() {
   const btn = document.getElementById('btn-resultats');
   if (!btn) return;
   const fasePregunta = (partida.fase || 'espera') === 'pregunta';
-  const tothomHaRespost = jugadorsActiusCount > 0 && respostesActualsCount >= jugadorsActiusCount;
+  const jugadorsEsperats = Number(partida.jugadorsEsperats || 0);
+  const tothomHaRespost = jugadorsEsperats > 0 && respostesActualsCount >= jugadorsEsperats;
   btn.disabled = fasePregunta ? !tothomHaRespost : false;
 }
 
 window.resetJoc = async function() {
   if (!confirm('Reiniciar tot el joc?')) return;
-  const { getDocs, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
   const batch = writeBatch(db);
   const rSnap = await getDocs(collection(db, 'partida', 'estat', 'respostes'));
   rSnap.forEach(d => batch.delete(d.ref));
