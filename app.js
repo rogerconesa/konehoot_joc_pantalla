@@ -29,6 +29,9 @@ let jugadorsSnap = null;
 let jocs = [];
 let configJoc = { tempsPregunta: 20, puntsBase: 1000, puntsRapidesa: 500 };
 let jocSeleccionat = '';
+let jugadorsActiusCount = 0;
+let respostesActualsCount = 0;
+let canviantAResultats = false;
 
 function getJocActiu() {
   return jocs.find(j => j.actiu !== false) || null;
@@ -101,16 +104,22 @@ function iniciarJoc() {
   jugadorsSnap = onSnapshot(collection(db, 'partida', 'estat', 'jugadors'), snap => {
     const resetAtMs = tsMillis(partida.resetAt);
     const docsActius = snap.docs.filter(d => tsMillis(d.data().connectatAt) >= resetAtMs);
-    const jugadorsConnectats = docsActius.length;
+    const jocCursId = partida.jocId || jocSeleccionat;
+    const jugadorsActius = jocCursId
+      ? docsActius.filter(d => (d.data().jocId || '') === jocCursId)
+      : docsActius;
+    const jugadorsConnectats = jugadorsActius.length;
+    jugadorsActiusCount = jugadorsConnectats;
     const el = document.getElementById('espera-jugadors');
     if (el) el.textContent = jugadorsConnectats;
     const startBtn = document.getElementById('espera-start-btn');
     if (startBtn) startBtn.disabled = jugadorsConnectats < 1;
     const playersEl = document.getElementById('espera-players');
     if (playersEl) {
-      const noms = docsActius.map(d => (d.data().nom || d.id)).filter(Boolean).sort((a, b) => String(a).localeCompare(String(b), 'ca'));
+      const noms = jugadorsActius.map(d => (d.data().nom || d.id)).filter(Boolean).sort((a, b) => String(a).localeCompare(String(b), 'ca'));
       playersEl.innerHTML = noms.map(n => `<span class="player-chip">${esc(n)}</span>`).join('');
     }
+    actualitzarBotoResultats();
     if (connEl) connEl.textContent = 'Connexio: en linia';
   }, err => {
     console.error('Error llegint jugadors connectats:', err);
@@ -118,6 +127,8 @@ function iniciarJoc() {
     if (el) el.textContent = '0';
     const playersEl = document.getElementById('espera-players');
     if (playersEl) playersEl.innerHTML = '';
+    jugadorsActiusCount = 0;
+    actualitzarBotoResultats();
     if (connEl) connEl.textContent = 'Connexio: error llegint jugadors';
   });
 }
@@ -125,6 +136,7 @@ function iniciarJoc() {
 // ── Render principal ──────────────────────────────────────────────────
 function renderEstat() {
   const fase = partida.fase || 'espera';
+  if (fase !== 'pregunta') canviantAResultats = false;
   ocultarTot();
 
   if (fase === 'espera')       mostrarEspera();
@@ -185,7 +197,20 @@ function mostrarPregunta() {
   respostesSnap = onSnapshot(
     collection(db, 'partida', 'estat', 'respostes'),
     snap => {
-      document.getElementById('pq-respostes-cnt').textContent = snap.size;
+      respostesActualsCount = snap.size;
+      document.getElementById('pq-respostes-cnt').textContent = respostesActualsCount;
+      actualitzarBotoResultats();
+      if (
+        (partida.fase || 'espera') === 'pregunta' &&
+        !canviantAResultats &&
+        jugadorsActiusCount > 0 &&
+        respostesActualsCount >= jugadorsActiusCount
+      ) {
+        canviantAResultats = true;
+        updateDoc(doc(db, 'partida', 'estat'), { fase: 'resultats' }).catch(() => {
+          canviantAResultats = false;
+        });
+      }
     }
   );
 
@@ -217,6 +242,7 @@ async function mostrarResultats() {
   const screen = document.getElementById('screen-resultats');
   screen.style.display = 'flex';
   if (respostesSnap) { respostesSnap(); respostesSnap = null; }
+  actualitzarBotoResultats();
 
   const idx = partida.preguntaIndex ?? 0;
   const p   = preguntesActives()[idx];
@@ -303,8 +329,13 @@ window.iniciarPartida = async function() {
   if (!jocSeleccionat) { alert('Selecciona un joc.'); return; }
   if (!bloc.length) { alert('No hi ha preguntes al joc seleccionat!'); return; }
   const joc = jocs.find(j => j.id === jocSeleccionat);
-  // Esborra jugadors i respostes anteriors
-  const batch = (await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js")).writeBatch(db);
+  // Esborra respostes anteriors
+  const { getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+  const batch = writeBatch(db);
+  const rSnap = await getDocs(collection(db, 'partida', 'estat', 'respostes'));
+  rSnap.forEach(d => batch.delete(d.ref));
+  respostesActualsCount = 0;
+  await batch.commit();
   await setDoc(doc(db, 'partida', 'estat'), {
     fase: 'pregunta',
     jocId: jocSeleccionat,
@@ -334,8 +365,17 @@ window.seguentPregunta = async function() {
 };
 
 window.mostrarResultatsAdmin = async function() {
+  if ((partida.fase || 'espera') === 'pregunta' && respostesActualsCount < jugadorsActiusCount) return;
   await updateDoc(doc(db, 'partida', 'estat'), { fase: 'resultats' });
 };
+
+function actualitzarBotoResultats() {
+  const btn = document.getElementById('btn-resultats');
+  if (!btn) return;
+  const fasePregunta = (partida.fase || 'espera') === 'pregunta';
+  const tothomHaRespost = jugadorsActiusCount > 0 && respostesActualsCount >= jugadorsActiusCount;
+  btn.disabled = fasePregunta ? !tothomHaRespost : false;
+}
 
 window.resetJoc = async function() {
   if (!confirm('Reiniciar tot el joc?')) return;
