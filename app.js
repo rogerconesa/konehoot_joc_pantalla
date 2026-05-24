@@ -31,6 +31,8 @@ let configJoc = { tempsPregunta: 20, puntsBase: 1000, puntsRapidesa: 500 };
 let jocSeleccionat = '';
 let jugadorsActiusCount = 0;
 let respostesActualsCount = 0;
+let canviResultatsManualPermes = false;
+let ultimaFase = 'espera';
 
 async function comptarJugadorsActius(jocId) {
   if (!jocId) return 0;
@@ -94,7 +96,15 @@ function iniciarJoc() {
       mostrarEspera();
       return;
     }
-    partida = snap.data();
+    const novaPartida = snap.data();
+    const faseNova = novaPartida.fase || 'espera';
+    const esPasNoManual = ultimaFase === 'pregunta' && faseNova === 'resultats' && !canviResultatsManualPermes;
+    if (esPasNoManual) {
+      updateDoc(doc(db, 'partida', 'estat'), { fase: 'pregunta' }).catch(() => {});
+      return;
+    }
+    partida = novaPartida;
+    ultimaFase = faseNova;
     if (partida.jocId) {
       jocSeleccionat = partida.jocId;
     }
@@ -364,8 +374,12 @@ window.seguentPregunta = async function() {
 };
 
 window.mostrarResultatsAdmin = async function() {
-  if ((partida.fase || 'espera') === 'pregunta' && respostesActualsCount < jugadorsActiusCount) return;
+  if ((partida.fase || 'espera') !== 'pregunta') return;
+  canviResultatsManualPermes = true;
   await updateDoc(doc(db, 'partida', 'estat'), { fase: 'resultats' });
+  setTimeout(() => {
+    canviResultatsManualPermes = false;
+  }, 1500);
 };
 
 function actualitzarBotoResultats() {
