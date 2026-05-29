@@ -48,6 +48,10 @@ function getJocActiu() {
   return jocs.find(j => j.actiu !== false) || null;
 }
 
+function getJocActiuId() {
+  return getJocActiu()?.id || '';
+}
+
 function tsMillis(ts) {
   if (!ts) return 0;
   if (typeof ts.toMillis === 'function') return ts.toMillis();
@@ -105,9 +109,6 @@ function iniciarJoc() {
     }
     partida = novaPartida;
     ultimaFase = faseNova;
-    if (partida.jocId) {
-      jocSeleccionat = partida.jocId;
-    }
     actualitzarTemaPerJoc();
     renderEstat();
   });
@@ -123,7 +124,7 @@ function iniciarJoc() {
   jugadorsSnap = onSnapshot(collection(db, 'partida', 'estat', 'jugadors'), snap => {
     const resetAtMs = tsMillis(partida.resetAt);
     const docsActius = snap.docs.filter(d => tsMillis(d.data().connectatAt) >= resetAtMs);
-    const jocCursId = partida.jocId || jocSeleccionat;
+    const jocCursId = getJocActiuId();
     const jugadorsActius = jocCursId
       ? docsActius.filter(d => (d.data().jocId || '') === jocCursId)
       : docsActius;
@@ -173,19 +174,19 @@ function ocultarTot() {
 // ── PANTALLA ESPERA ───────────────────────────────────────────────────
 function mostrarEspera() {
   document.getElementById('screen-espera').style.display = 'flex';
-  const jocActiu = partida.jocId || jocSeleccionat;
-  const total = preguntes.filter(p => (p.jocId || '') === jocActiu).length;
+  const jocActiuId = getJocActiuId();
+  const total = preguntes.filter(p => (p.jocId || '') === jocActiuId).length;
   document.getElementById('espera-total').textContent = total;
 }
 
 function actualitzarTemaPerJoc() {
-  const jocActiu = partida.jocNom || (jocs.find(j => j.id === jocSeleccionat)?.nom || '');
+  const jocActiu = getJocActiu()?.nom || '';
   document.body.classList.toggle('theme-finde', String(jocActiu).trim().toLowerCase() === 'finde rural 2026');
 }
 
 function preguntesActives() {
-  const jocActiu = partida.jocId || jocSeleccionat;
-  return preguntes.filter(p => (p.jocId || '') === jocActiu);
+  const jocActiuId = getJocActiuId();
+  return preguntes.filter(p => (p.jocId || '') === jocActiuId);
 }
 
 // ── PANTALLA PREGUNTA ─────────────────────────────────────────────────
@@ -283,15 +284,6 @@ async function mostrarResultats() {
     el.classList.toggle('incorrecta', i !== p.correcta);
   });
 
-  // Rànquing top 5
-  const jugadors = {};
-  resSnap.forEach(d => {
-    const dat = d.data();
-    const nom = dat.nom || d.id;
-    if (!jugadors[nom]) jugadors[nom] = { nom, punts: 0 };
-    if (dat.resposta === p.correcta) jugadors[nom].punts += dat.punts || 0;
-  });
-
   // Puntuació acumulada de Firestore
   const rankSnap = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js")
     .then(m => m.getDocs(collection(db, 'partida', 'estat', 'jugadors')));
@@ -301,9 +293,9 @@ async function mostrarResultats() {
   rank.sort((a,b) => b.punts - a.punts);
 
   const rankEl = document.getElementById('res-ranking');
-  rankEl.innerHTML = rank.slice(0,5).map((j, i) => `
+  rankEl.innerHTML = rank.map((j, i) => `
     <div class="rank-row">
-      <span class="rank-pos">${['🥇','🥈','🥉','4','5'][i]}</span>
+      <span class="rank-pos">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1)}</span>
       <span class="rank-nom">${esc(j.nom)}</span>
       <span class="rank-punts">${j.punts} pts</span>
     </div>
@@ -333,11 +325,12 @@ async function mostrarFinal() {
 
 // ── CONTROLS ADMIN (botons de la pantalla) ────────────────────────────
 window.iniciarPartida = async function() {
-  const bloc = preguntes.filter(p => (p.jocId || '') === jocSeleccionat);
-  if (!jocSeleccionat) { alert('Selecciona un joc.'); return; }
+  const jocActiuId = getJocActiuId();
+  const bloc = preguntes.filter(p => (p.jocId || '') === jocActiuId);
+  if (!jocActiuId) { alert('No hi ha cap joc actiu.'); return; }
   if (!bloc.length) { alert('No hi ha preguntes al joc seleccionat!'); return; }
-  const joc = jocs.find(j => j.id === jocSeleccionat);
-  const jugadorsEsperats = await comptarJugadorsActius(jocSeleccionat);
+  const joc = jocs.find(j => j.id === jocActiuId);
+  const jugadorsEsperats = await comptarJugadorsActius(jocActiuId);
   // Esborra respostes anteriors
   const batch = writeBatch(db);
   const rSnap = await getDocs(collection(db, 'partida', 'estat', 'respostes'));
@@ -346,8 +339,8 @@ window.iniciarPartida = async function() {
   await batch.commit();
   await setDoc(doc(db, 'partida', 'estat'), {
     fase: 'pregunta',
-    jocId: jocSeleccionat,
-    jocNom: joc?.nom || jocSeleccionat,
+    jocId: jocActiuId,
+    jocNom: joc?.nom || jocActiuId,
     preguntaIndex: 0,
     jugadorsEsperats,
     tempsPregunta: configJoc.tempsPregunta || 20,
